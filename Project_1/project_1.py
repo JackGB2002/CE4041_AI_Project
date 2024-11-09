@@ -29,16 +29,16 @@ model = Sequential([
     MaxPooling2D(pool_size=(2, 2)),
     Dropout(0.25),
 
-    Conv2D(64, kernel_size=(3, 3), activation='relu'),
+    Conv2D(128, kernel_size=(3, 3), activation='relu'),
     MaxPooling2D(pool_size=(2, 2)),
-    Dropout(0.1),
+    Dropout(0.15),
 
     Conv2D(128, kernel_size=(3, 3), activation='relu'),
-    # Dropout(0.5),
+    Dropout(0.1),
 
     Flatten(),
 
-    Dense(256, activation='relu'),
+    #Dense(128, activation='relu'),
     # Dropout(0.3),
     Dense(10, activation='softmax')
 ])
@@ -50,10 +50,10 @@ model.summary()
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
 
 # Define early stopping callback
-stop = EarlyStopping(monitor='val_loss', min_delta=0, patience=5, mode='min')
+stop = EarlyStopping(monitor='val_loss', min_delta=0.05  , patience=10, mode='min')
 
 # Train the model with augmented data
-history = model.fit(tra_vec, cat_tralab, epochs=20, validation_split=0.2, callbacks=[stop])
+history = model.fit(tra_vec, cat_tralab, epochs=30, validation_split=0.2, callbacks=[stop])
 
 
 ###############################################################################################
