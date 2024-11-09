@@ -8,13 +8,13 @@
 ## 20 epochs, 80%/20% training/validation split, with early stopping
 
 import numpy as np
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout
-from tensorflow.keras.initializers import RandomNormal
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import Sequential # type: ignore
+from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout # type: ignore
+from tensorflow.keras.initializers import RandomNormal # type: ignore
+from tensorflow.keras.optimizers import Adam # type: ignore
+from tensorflow.keras.callbacks import EarlyStopping # type: ignore
+from tensorflow.keras.utils import to_categorical # type: ignore
+from tensorflow.keras.datasets import mnist # type: ignore
 
 # Load and preprocess the MNIST dataset
 (tra, tralab), (tes, teslab) = mnist.load_data()
