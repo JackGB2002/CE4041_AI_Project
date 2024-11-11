@@ -7,7 +7,20 @@
 ## RMSprop optimizer, categorical cross-entropy loss
 ## 20 epochs, 80%/20% training/validation split, with early stopping
 
+
+# Constants
+EPOCHS = 20
+SPLIT = 0.2
+SHUFFLE = True
+BATCH = 32
+OPT = 'Adam'#'rmsprop' #'Adam'
+
+
+
+
+import os as os
 import numpy as np
+import tensorflow
 from tensorflow.keras.models import Sequential # type: ignore
 from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout # type: ignore
 from tensorflow.keras.initializers import RandomNormal # type: ignore
@@ -15,6 +28,18 @@ from tensorflow.keras.optimizers import Adam # type: ignore
 from tensorflow.keras.callbacks import EarlyStopping # type: ignore
 from tensorflow.keras.utils import to_categorical # type: ignore
 from tensorflow.keras.datasets import mnist # type: ignore
+
+#Setting up enviornment random seeds: 
+np.random.seed(1)                    # Initialise system RNG.
+
+tensorflow.random.set_seed(2)        # Initialize the seed of the Tensorflow backend.
+
+#TODO: Examine the use of NEW_KERAS
+VERSION = tensorflow.__version__
+print(VERSION)                       # Should be at least 2.0.
+NEW_KERAS = True if int(VERSION.split('.')[1]) >= 12 else False
+
+
 
 # Load and preprocess the MNIST dataset
 (tra, tralab), (tes, teslab) = mnist.load_data()
@@ -25,21 +50,22 @@ cat_teslab = to_categorical(teslab)
 
 # Defining the CNN model
 model = Sequential([
-    Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
+    Conv2D(filters=32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
     MaxPooling2D(pool_size=(2, 2)),
-    Dropout(0.25),
+    #Dropout(0.25),
 
-    Conv2D(128, kernel_size=(3, 3), activation='relu'),
+    Conv2D(filters=64, kernel_size=(3, 3), activation='relu', padding="same"),
     MaxPooling2D(pool_size=(2, 2)),
-    Dropout(0.15),
+    #Dropout(0.25),
 
-    Conv2D(128, kernel_size=(3, 3), activation='relu'),
+    Conv2D(filters=64, kernel_size=(3, 3), activation='relu', padding="same"),
+    MaxPooling2D(pool_size=(2, 2)),
     Dropout(0.1),
 
     Flatten(),
 
-    #Dense(128, activation='relu'),
-    # Dropout(0.3),
+    Dense(128, activation='relu'),
+    #Dropout(0.4),
     Dense(10, activation='softmax')
 ])
 
@@ -47,13 +73,13 @@ print("The Keras network model")
 model.summary()
 
 # Compile the model
-model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer=OPT, metrics=['accuracy'])
 
 # Define early stopping callback
-stop = EarlyStopping(monitor='val_loss', min_delta=0.05  , patience=10, mode='min')
+stop = EarlyStopping(monitor='val_loss', min_delta=0.0 , patience=5, mode='min', restore_best_weights=True)
 
 # Train the model with augmented data
-history = model.fit(tra_vec, cat_tralab, epochs=30, validation_split=0.2, callbacks=[stop])
+history = model.fit(tra_vec, cat_tralab, epochs=EPOCHS, validation_split=SPLIT, callbacks=[stop])
 
 
 ###############################################################################################
@@ -82,6 +108,11 @@ def plot_loss(history):
     
     # Adjust layout to fit subplots nicely and display
     plt.tight_layout()
+    
+    #Save the plots to a file
+    os.makedirs("./Project_1/Output_Plots", exist_ok=True)
+    plt.savefig("./Project_1/Output_Plots/Plot_1.png")
+    
     plt.show()
 
 def evaluate_model_performance(model, test_data, test_labels):
