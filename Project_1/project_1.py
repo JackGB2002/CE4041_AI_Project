@@ -137,6 +137,60 @@ def evaluate_model_performance(model, test_data, test_labels):
     print("Final Validation Accuracy: {:6.2f}%".format(val_acc * 100))
     print("Final Testing Accuracy:    {:6.2f}%".format(test_acc * 100))
 
+def plot_training_validation_accuracy(history):
+    """
+    Plots the training and validation accuracy over epochs.
+    
+    Parameters:
+    - history: Training history object from model.fit(), containing accuracy per epoch.
+    """
+    epochs = range(1, len(history.history['accuracy']) + 1)
+    
+    # Plot Training and Validation Accuracy
+    plt.figure(figsize=(8, 6))
+    plt.plot(epochs, history.history['accuracy'], label='Training Accuracy', marker='o', color='orange')
+    plt.plot(epochs, history.history['val_accuracy'], label='Validation Accuracy', marker='o', color='red')
+    plt.title('Training and Validation Accuracy per Epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend(loc='lower right')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("./Project_1/Output_Plots/Accuracy_Plot.png")
+    plt.show()
+
+# Function to plot confusion matrix
+def plot_confusion_matrix(model, test_data, test_labels):
+    """
+    Plots a normalized confusion matrix of the model's predictions on the test dataset.
+    
+    Parameters:
+    - model: Trained model to evaluate.
+    - test_data: Test dataset to evaluate the model on.
+    - test_labels: True labels for the test dataset.
+    """
+    # Predict the class labels on the test set
+    predictions = model.predict(test_data)
+    predicted_labels = np.argmax(predictions, axis=1)
+    true_labels = np.argmax(test_labels, axis=1)
+    
+    # Compute confusion matrix
+    cm = confusion_matrix(true_labels, predicted_labels)
+    
+    # Normalize the confusion matrix to percentages
+    cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    
+    # Plot confusion matrix
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm_normalized, annot=True, fmt='.2f', cmap='Blues', xticklabels=np.arange(10), yticklabels=np.arange(10))
+    plt.title('Confusion Matrix for Model Predictions')
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+    plt.tight_layout()
+    plt.savefig("./Project_1/Output_Plots/Confusion_Matrix.png")
+    plt.show()
+
+
 # Call the functions after training
 evaluate_model_performance(model, tes, cat_teslab)
 plot_loss(history)
