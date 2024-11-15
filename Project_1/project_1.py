@@ -1,5 +1,14 @@
-## kerasMNISTv2.py
-##
+##===========================================================
+#
+#Title: CE4041_AI Project 1
+#@Author: Jack Browne, Syed Hassaan Shah, Ethan o’Brien  
+#@Date : 15/11/2024
+#
+##===========================================================
+
+
+
+
 ## Train a convolutional neural network on the MNIST dataset.
 ## Uses two convolutional layers, max-pooling, and dropout layers.
 ##
@@ -20,7 +29,7 @@ OPT = 'Adam'#'rmsprop' #'Adam'
 
 import os as os
 import numpy as np
-import tensorflow
+from tensorflow.random import set_seed
 from tensorflow.keras.models import Sequential # type: ignore
 from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout # type: ignore
 from tensorflow.keras.initializers import RandomNormal # type: ignore
@@ -32,12 +41,8 @@ from tensorflow.keras.datasets import mnist # type: ignore
 #Setting up enviornment random seeds: 
 np.random.seed(1)                    # Initialise system RNG.
 
-tensorflow.random.set_seed(2)        # Initialize the seed of the Tensorflow backend.
+set_seed(2)        # Initialize the seed of the Tensorflow backend.
 
-#TODO: Examine the use of NEW_KERAS
-VERSION = tensorflow.__version__
-print(VERSION)                       # Should be at least 2.0.
-NEW_KERAS = True if int(VERSION.split('.')[1]) >= 12 else False
 
 
 
@@ -82,6 +87,8 @@ stop = EarlyStopping(monitor='val_loss', min_delta=0.0 , patience=5, mode='min',
 history = model.fit(tra_vec, cat_tralab, epochs=EPOCHS, validation_split=SPLIT, callbacks=[stop])
 
 
+###############################################################################################
+# Plot graphs of results
 ###############################################################################################
 
 import matplotlib.pyplot as plt
@@ -189,7 +196,6 @@ def plot_confusion_matrix(model, test_data, test_labels):
     plt.tight_layout()
     plt.savefig("./Project_1/Output_Plots/Confusion_Matrix.png")
     plt.show()
-
 
 # Call the functions after training
 evaluate_model_performance(model, tes, cat_teslab)
