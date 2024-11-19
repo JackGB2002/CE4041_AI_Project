@@ -9,6 +9,12 @@
             "command": "python3 ./Project_1/project_1.py",
             "problemMatcher": []
         },
+        {
+            "label": "Run_Project_2",
+            "type": "shell",
+            "command": "python3 ./Project_2/Project_2.py",
+            "problemMatcher": []
+        }
        
     ]
 }

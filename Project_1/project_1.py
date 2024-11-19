@@ -57,7 +57,7 @@ cat_teslab = to_categorical(teslab)
 model = Sequential([
     Conv2D(filters=32, kernel_size=(3, 3), activation='relu', input_shape=(28, 28, 1)),
     MaxPooling2D(pool_size=(2, 2)),
-    #Dropout(0.25),
+    Dropout(0.1),
 
     Conv2D(filters=64, kernel_size=(3, 3), activation='relu', padding="same"),
     MaxPooling2D(pool_size=(2, 2)),
@@ -70,7 +70,7 @@ model = Sequential([
     Flatten(),
 
     Dense(128, activation='relu'),
-    #Dropout(0.4),
+    Dropout(0.4),
     Dense(10, activation='softmax')
 ])
 
