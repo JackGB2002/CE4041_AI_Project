@@ -5,7 +5,7 @@ from matplotlib.colors import ListedColormap
 
 #Constants 
 n = 0.1 #NOTE Not sure if this is required 
-N = 5 #N samples 
+N = 50#N samples 
 
 plt.figure(figsize=(10, 10))
 
@@ -70,10 +70,34 @@ class Data_Set:
             else: 
                 self.summed_weights[index] = self.summed_weights[index - 1] + self.weights[index]
         
-    def select_weighted_random(n_elements): 
-        index = np.random.rand()
-        print(index)
-
+    def select_weighted_random(self, n_elements): 
+                
+        selection_matrix = np.zeros(self.weights.shape)
+        indecies = []
+        
+        for element in range(n_elements): 
+            
+            random = np.random.rand() * self.summed_weights[-1]
+            
+            for weight in range(len(self.weights)): 
+               
+               
+                if(self.summed_weights[weight] > random): 
+                    
+                    
+                    
+                    offset = 0
+                    while(selection_matrix[(weight + offset)%(len(self.weights))] == 1):
+                        offset = offset + 1
+                    
+                    indecies.append((weight + offset)%(len(self.weights)))
+                    
+                    selection_matrix[(weight + offset)%(len(self.weights))] = 1
+                    break
+        
+        #print(indecies)
+        return self.select(selection_matrix)     
+                
 class Weak_Classifier: 
     
     def __init__(self):
@@ -92,8 +116,6 @@ class Weak_Classifier:
         
         # Select all of the negative category points, them and sum them and normalize. 
         negative = weighted[(dataset.category.reshape(len(dataset.category)) == -1), :].sum(axis = 0) / dataset.weights[(dataset.category.reshape(len(dataset.category)) == -1)].sum(axis = 0)
-        
-        dataset.plot(lines = [positive[0], positive[1], negative[0], negative[1]], category = None)
         
         #print(positive)
         #print(negative)
@@ -115,7 +137,7 @@ class Weak_Classifier:
         self.offset = C 
         self.normal = normal
     
-    
+        """
         x1 = -2
         x2 = 2
         y1 = slope*x1 + C
@@ -140,7 +162,7 @@ class Weak_Classifier:
         #print(slope)
         #print(midpoint)
         #print(C)
-        
+        """
 
         
     def classify(self, dataset): 
@@ -157,13 +179,32 @@ class Weak_Classifier:
         #print(guesses)
         #print(guesses.shape)
         
-        #TODO: Add in the calculation for ai here and set it to self...
+      
         
         #Select the errors and weight them: 
         error = dataset.weights[guesses != dataset.category].sum()
-        print("Percentage error: ", error, "%")
         
+        print("Weak Error: ", error)
+        
+        self.alpha = (1/2)*np.log((1-error) / error)
         return error
+
+    def plot_decision_boundary(self):
+        
+        x1 = -2
+        x2 = 2
+        y1 = self.slope*x1 + self.offset
+        y2 = self.slope*x2 + self.offset
+        
+        plt.plot( [x1, x2], [y1, y2])
+        
+        plt.title("Decision Boundaries")
+        plt.xlabel('X Axis')
+        plt.ylabel('Y Axis')
+        #plt.legend()
+
+        plt.xlim(-2 , 2)
+        plt.ylim(-2 , 2)
 
 
 class AdaBoost_Classifier: 
@@ -176,20 +217,12 @@ class AdaBoost_Classifier:
     def train(self):
         
         training_data = self.data_set.select(None)
-        training_data.select_weighted_random()
+        
         for itteration in range(self.itterations): 
             
-            #NOTE: Ensure that this line is not re-ordering the "new_weights" variable
-            temp_index = np.argpartition(-np.array(training_data.weights).reshape(-1), N-1)[:N]
-
-            selection = np.zeros(training_data.weights.shape)
-
-            for index in temp_index: 
-                selection[index] = 1
-            
-            training_sample_set = training_data.select(selection)
-            
-            
+                      
+            training_sample_set = training_data.select_weighted_random(N)
+                        
             weak = Weak_Classifier()
             weak.train(training_sample_set)
             error = weak.accuracy(train_dataset)
@@ -198,13 +231,62 @@ class AdaBoost_Classifier:
             new_weights = train_dataset.weights * (np.where((guesses == train_dataset.category), (1/(2*(1-error))), (1/(2*(error)))))
 
             training_data = Data_Set(train_dataset.coordinates, train_dataset.category, new_weights)
-
-            print(weak.slope, ": ", weak.offset)
             
-            self.weak_classifiers.append(weak)
+            self.weak_classifiers.append(weak)           
 
+    def classify(self, data_set): 
+        
+        total_classification = np.zeros(data_set.category.shape)
+        
+        for weak_classifier in self.weak_classifiers: 
+            total_classification += weak_classifier.alpha*weak_classifier.classify(data_set)
+        
+        #print(total_classification)
+        
+        
+        return np.sign(total_classification)
+
+    def accuracy(self, dataset): 
+        
+        #Get the classifiers guesses on the data:
+        guesses = self.classify(dataset)
+        #print(guesses)
+        #print(guesses.shape)
+        
+      
+        
+        #Select the errors and weight them: 
+        error = dataset.weights[guesses != dataset.category].sum()
+        
+        print("Final Error: ", error)
+        
+        self.alpha = (1/2)*np.log((1-error) / error)
+        return error
+    	
+    def plot_decision_boundaries(self):
+        
+        plt.figure(figsize=(10, 10))
+        
+        for weak in self.weak_classifiers: 
+            weak.plot_decision_boundary()
+        
+        os.makedirs("./Output_Plots", exist_ok=True)
+        plt.savefig("./Output_Plots/Decision_Boundaries.png")
+        #plt.figure(figsize=(10, 10))
+      
+    def plot_points(self, data_set):
+        
+        guesses = self.classify(data_set)
+        
+        plt.scatter(data_set.coordinates[data_set.category[:,0] != guesses[:, 0], 0],  data_set.coordinates[data_set.category[:,0] != guesses[:, 0], 1], color='green', marker='x')
+       
+        plt.scatter(data_set.coordinates[data_set.category[:,0] == 1, 0],  data_set.coordinates[data_set.category[:,0] == 1, 1], color='red', marker='.', label='Positive')
+        plt.scatter(data_set.coordinates[data_set.category[:,0] == -1, 0], data_set.coordinates[data_set.category[:,0] == -1,1], color='blue', marker='.', label='Negative')
+       
+       
+        os.makedirs("./Output_Plots", exist_ok=True)
+        plt.savefig("./Output_Plots/Incorrect_Points.png")
             
-
 # Load training data
 train_data = np.loadtxt('adaboost-train-24.txt')
 train_coordinates = train_data[:, :-1]  # Feature columns
@@ -221,11 +303,14 @@ test_weights = (1/len(test_category))*np.ones(len(test_category))
 
 test_dataset = Data_Set(test_coordinates, test_category, test_weights)
 
-ada = AdaBoost_Classifier(1, train_dataset)
+ada = AdaBoost_Classifier(10, train_dataset)
 ada.train()
-
+print(ada.accuracy(train_dataset))
+ada.plot_decision_boundaries()
+ada.plot_points(test_dataset.select_weighted_random(20))
 
 # Plotting decision boundary function
+"""
 def plot_decision_boundary(X, y, title):
    
     x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
@@ -246,14 +331,16 @@ def plot_decision_boundary(X, y, title):
     plt.xlabel('Feature 1')
     plt.ylabel('Feature 2')
     plt.legend()
-
+"""
 # Plot training data
 #plot_decision_boundary(X_train, y_train, 'AdaBoost Classifier Decision Boundary (Training Data)')
 
 # Plot test data
 #plot_decision_boundary(X_test, y_test, 'AdaBoost Classifier Decision Boundary (Test Data)')
 
+"""
 plt.show()
 #Save the plots to a file
 os.makedirs("./Output_Plots", exist_ok=True)
 plt.savefig("./Output_Plots/Plot_1.png")
+"""
