@@ -2,12 +2,12 @@ import os as os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
-
 #Constants 
-n = 0.1 #NOTE Not sure if this is required 
-N = 50#N samples 
+N = 400#N samples 
+CLASSIFIERS = 200
 
 plt.figure(figsize=(10, 10))
+
 
 class Data_Set:
     
@@ -101,14 +101,47 @@ class Data_Set:
 class Weak_Classifier: 
     
     def __init__(self):
-        self.slope = 1 
-        self.offset = 0
+        self.feature_index = 1 
+        self.threshold = 0
         self.alpha = 0
         self.normal = -1
     
-    def train(self, dataset):
+    def train(self, data_set):
+        
+        n_samples, n_features = data_set.coordinates.shape
+        best_loss = float('inf')
+        test_set = data_set
+        for feature_index in range(n_features): #Alternating between x and y
+            thresholds = np.unique(data_set.coordinates[:, feature_index])
+            
+            for threshold in thresholds:
+                for polarity in [1, -1]:
+                    predictions = np.ones(data_set.category.shape)
+                    predictions[polarity * data_set.coordinates[:, feature_index] < polarity * threshold] = -1
+                  
+                    # Calculate weighted error
+                    error = data_set.weights[(predictions != data_set.category)].sum()
+                    
+                    # If error is less than best_loss, update best parameters
+                    if error < best_loss:
+                        best_loss = error
+                        self.threshold = threshold
+                        self.normal = polarity
+                        self.feature_index = feature_index  # Store the feature index
+
+        # Calculate alpha (classifier weight)
+        self.alpha = 0.5 * np.log((1 - best_loss) / (best_loss + 1e-10))
+            
         
         
+        
+        
+        
+        
+        
+        
+        
+        """
         #TODO: Re look at this and ensure that it is producing an average location of the points and not a vector which would mess up the offset term
         weighted = dataset.coordinates*dataset.weights
         # Select all of the positive category points, them and sum them and normalize. 
@@ -138,6 +171,7 @@ class Weak_Classifier:
         self.normal = normal
     
         """
+        """
         x1 = -2
         x2 = 2
         y1 = slope*x1 + C
@@ -163,14 +197,21 @@ class Weak_Classifier:
         #print(midpoint)
         #print(C)
         """
-
         
-    def classify(self, dataset): 
+    def classify(self, data_set): 
         
-        output =  self.normal * np.sign(dataset.coordinates[:, 1] - self.slope*dataset.coordinates[:, 0] - self.offset) 
+        output = np.ones(data_set.category.shape[0])
+        # Use the threshold to classify based on the polarity
+        if self.normal == 1:
+            output[data_set.coordinates[:, self.feature_index] < self.threshold] = -1
+        else:
+            output[data_set.coordinates[:, self.feature_index] >= self.threshold] = -1
         
-        return output.reshape(dataset.category.shape)
-    
+        #output = self.normal* np.sign(data_set.coordinates[:, self.feature_index]  - self.threshold)
+        
+        #output =  self.normal * np.sign(dataset.coordinates[:, 1] - self.slope*dataset.coordinates[:, 0] - self.offset) 
+        
+        return output.reshape(data_set.category.shape)
     
     def accuracy(self, dataset): 
         
@@ -184,18 +225,35 @@ class Weak_Classifier:
         #Select the errors and weight them: 
         error = dataset.weights[guesses != dataset.category].sum()
         
-        print("Weak Error: ", error)
+        #print("Weak Error: ", error)
         
-        self.alpha = (1/2)*np.log((1-error) / error)
+        self.alpha = (1/2)*np.log((1-error) / (error + 1e-10))
         return error
 
     def plot_decision_boundary(self):
         
-        x1 = -2
-        x2 = 2
-        y1 = self.slope*x1 + self.offset
-        y2 = self.slope*x2 + self.offset
+        x1 = 0
+        x2 = 0
+        y1 = 0
+        y2 = 0
         
+        if(self.feature_index == 0):    # X Axis Boundary
+            x1 = self.threshold
+            x2 = self.threshold
+            
+            y1 = -2
+            y2 =  2
+            
+            plt.plot([self.threshold, self.threshold+(self.normal)], [0, 0])
+        
+        else :
+            y1 = self.threshold
+            y2 = self.threshold
+            
+            x1 = -2
+            x2 =  2
+            plt.plot([0, 0], [self.threshold, self.threshold+(self.normal)])
+            
         plt.plot( [x1, x2], [y1, y2])
         
         plt.title("Decision Boundaries")
@@ -206,33 +264,47 @@ class Weak_Classifier:
         plt.xlim(-2 , 2)
         plt.ylim(-2 , 2)
 
-
 class AdaBoost_Classifier: 
     
-    def __init__(self, itterations, data_set):
+    def __init__(self, itterations):
         self.itterations = itterations
-        self.data_set = data_set
         self.weak_classifiers = []
+        self.train_accuracies = []
+        self.test_accuracies = []
 
-    def train(self):
+    def train(self, data_set):
         
-        training_data = self.data_set.select(None)
+        n_itterations = None; 
+        training_data = data_set.select(None) # Duplicate the dataset to avoid mutating the orriginal
         
         for itteration in range(self.itterations): 
             
-                      
-            training_sample_set = training_data.select_weighted_random(N)
+     
+            #Not sure if this is required
+            training_sample_set = training_data #training_data.select_weighted_random(N)
                         
             weak = Weak_Classifier()
             weak.train(training_sample_set)
-            error = weak.accuracy(train_dataset)
-            guesses = weak.classify(train_dataset)
+            error = weak.accuracy(training_data)
+            guesses = weak.classify(training_data)
             
-            new_weights = train_dataset.weights * (np.where((guesses == train_dataset.category), (1/(2*(1-error))), (1/(2*(error)))))
-
-            training_data = Data_Set(train_dataset.coordinates, train_dataset.category, new_weights)
+            new_weights = training_data.weights * np.exp(-weak.alpha * training_data.category * guesses) #(np.where((guesses == training_data.category), (1/(2*(1-error))), (1/(2*(error)))))
+            new_weights /= new_weights.sum()
+            training_data = Data_Set(training_data.coordinates, training_data.category, new_weights)
             
-            self.weak_classifiers.append(weak)           
+            self.weak_classifiers.append(weak)  
+            self.plot_decision_boundary(training_data)    
+            error = self.accuracy(training_data)     
+            self.train_accuracies.append(1-error)
+            error2 = self.accuracy(test_dataset)     
+            self.test_accuracies.append(1-error2)
+            if(error == 0): 
+                #break early:
+                n_itterations = itteration
+                break
+            print("Ada_Classifier Accuracy : ",  (1 - error), " Step : ", itteration)
+            
+        return n_itterations
 
     def classify(self, data_set): 
         
@@ -250,28 +322,44 @@ class AdaBoost_Classifier:
         
         #Get the classifiers guesses on the data:
         guesses = self.classify(dataset)
-        #print(guesses)
-        #print(guesses.shape)
-        
       
         
         #Select the errors and weight them: 
-        error = dataset.weights[guesses != dataset.category].sum()
+        error = np.mean(guesses != dataset.category)
         
-        print("Final Error: ", error)
+        #print("Ada_Classifier Accuracy : ",  (1 - error))
         
-        self.alpha = (1/2)*np.log((1-error) / error)
         return error
     	
-    def plot_decision_boundaries(self):
+    def plot_decision_boundary(self, data_set):
         
-        plt.figure(figsize=(10, 10))
+        x_min, x_max = data_set.coordinates[:, 0].min() - 1, data_set.coordinates[:, 0].max() + 1
+        y_min, y_max = data_set.coordinates[:, 1].min() - 1, data_set.coordinates[:, 1].max() + 1
+        xx, yy = np.meshgrid(np.linspace(x_min, x_max, 500), np.linspace(y_min, y_max, 500))
         
-        for weak in self.weak_classifiers: 
-            weak.plot_decision_boundary()
+        coords = np.c_[xx.ravel(), yy.ravel()]
         
+        plot_dataset = Data_Set(coords, np.zeros([len(coords),1]),np.zeros([len(coords) ,1]))
+        
+        Z = self.classify(plot_dataset)
+        Z = Z.reshape(xx.shape)
+
+        plt.contourf(xx, yy, Z, alpha=0.8, cmap=plt.cm.coolwarm)
+        self.plot_points(data_set)
+        plt.title('AdaBoost Decision Boundary')
+        plt.xlabel('Feature 1')
+        plt.ylabel('Feature 2')
+        plt.show()
         os.makedirs("./Output_Plots", exist_ok=True)
         plt.savefig("./Output_Plots/Decision_Boundaries.png")
+        
+        #plt.figure(figsize=(10, 10))
+        
+        #for weak in self.weak_classifiers: 
+        #    weak.plot_decision_boundary()
+        
+        #os.makedirs("./Output_Plots", exist_ok=True)
+        #plt.savefig("./Output_Plots/Decision_Boundaries.png")
         #plt.figure(figsize=(10, 10))
       
     def plot_points(self, data_set):
@@ -287,6 +375,7 @@ class AdaBoost_Classifier:
         os.makedirs("./Output_Plots", exist_ok=True)
         plt.savefig("./Output_Plots/Incorrect_Points.png")
             
+#============================================================================================
 # Load training data
 train_data = np.loadtxt('adaboost-train-24.txt')
 train_coordinates = train_data[:, :-1]  # Feature columns
@@ -303,44 +392,38 @@ test_weights = (1/len(test_category))*np.ones(len(test_category))
 
 test_dataset = Data_Set(test_coordinates, test_category, test_weights)
 
-ada = AdaBoost_Classifier(10, train_dataset)
-ada.train()
+#============================================================================================
+
+ada = AdaBoost_Classifier(CLASSIFIERS)
+ada.train(train_dataset)
 print(ada.accuracy(train_dataset))
-ada.plot_decision_boundaries()
-ada.plot_points(test_dataset.select_weighted_random(20))
 
-# Plotting decision boundary function
-"""
-def plot_decision_boundary(X, y, title):
-   
-    x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
-    y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
-    xx, yy = np.meshgrid(np.linspace(x_min, x_max, 500), np.linspace(y_min, y_max, 500))
 
-    Z = adaboost_clf.predict(np.c_[xx.ravel(), yy.ravel()])
-    Z = Z.reshape(xx.shape)
+ada.plot_decision_boundary(test_dataset)
+ada.plot_points(test_dataset)
 
-    # Create a color map
-    cmap_background = ListedColormap(['#FFAAAA', '#AAAAFF'])
 
-    plt.figure(figsize=(10, 6))
-    plt.contourf(xx, yy, Z, alpha=0.3, cmap=cmap_background)
-    plt.scatter(X[y == Z][:, 0], X[y == Z][:, 1], color='red', marker='+', label='Negative')
-    plt.scatter(X[y == -Z][:, 0], X[y == -Z][:, 1], color='blue', marker='.', label='Positive')
-    plt.title(title)
-    plt.xlabel('Feature 1')
-    plt.ylabel('Feature 2')
-    plt.legend()
-"""
-# Plot training data
-#plot_decision_boundary(X_train, y_train, 'AdaBoost Classifier Decision Boundary (Training Data)')
-
-# Plot test data
-#plot_decision_boundary(X_test, y_test, 'AdaBoost Classifier Decision Boundary (Test Data)')
-
-"""
+# Plotting the accuracies
+plt.figure(figsize=(10, 5))
+plt.plot(range(len(ada.train_accuracies)), ada.train_accuracies, label='Training Accuracy', marker='o')
+plt.plot(range(len(ada.test_accuracies)), ada.test_accuracies, label='Testing Accuracy', marker='o')
+plt.title('Accuracy vs Number of Classifiers')
+plt.xlabel('Number of Classifiers')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.grid()
 plt.show()
-#Save the plots to a file
 os.makedirs("./Output_Plots", exist_ok=True)
-plt.savefig("./Output_Plots/Plot_1.png")
-"""
+plt.savefig("./Output_Plots/Accuracy_Vs_Classifiers.png")
+
+
+
+max_test_accuracy = max(ada.test_accuracies)
+n_test_max_accuracy = ada.test_accuracies.index(max_test_accuracy) + 1  # +1 for index adjustment
+
+
+
+print(f'Number of classifiers for 100% training accuracy: {len(ada.train_accuracies)}')
+print(f'Maximum achievable accuracy on testing set: {max_test_accuracy:.2f}')
+print(f'Can testing set achieve 100% accuracy? {"Yes" if max_test_accuracy == 1.0 else "No"}')
+print(f'Number of weak learners for maximum testing accuracy: {n_test_max_accuracy}')
